@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="light">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="课业待办 · 校园任务管理 SPA 应用，支持待办管理、番茄钟、手动排课与本地持久化" />
+  <title>课业待办 · CampusTask</title>
+  <link rel="stylesheet" href="css/style.css" />
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='%236366f1' d='M9 3h6v2H9zm-3 0h2v2H6zm10 0h2v2h-2zM5 5h2v2H5zm10 0h2v2h-2zm2 0h2v2h-2zM5 7h14v14H5z'/%3E%3C/svg%3E" />
+</head>
+<body>
+  <!-- ===== 顶部导航 ===== -->
+  <header class="topbar">
+    <div class="topbar__inner">
+      <button class="hamburger" id="hamburger" aria-label="打开菜单">☰</button>
+      <div class="brand">
+        <svg class="brand__logo" viewBox="0 0 24 24" aria-hidden="true">
+          <path fill="currentColor" d="M9 3h6v2H9zm-3 0h2v2H6zm10 0h2v2h-2zM5 5h2v2H5zm10 0h2v2h-2zm2 0h2v2h-2zM5 7h14v14H5z"/>
+        </svg>
+        <div class="brand__text">
+          <h1>课业待办</h1>
+          <span>CampusTask</span>
+        </div>
+      </div>
+
+      <nav class="nav" id="nav">
+        <a href="#/plan" data-route="plan" class="nav__link">今日一屏</a>
+        <a href="#/" data-route="home" class="nav__link">清单</a>
+        <a href="#/focus" data-route="focus" class="nav__link">专注</a>
+      </nav>
+
+      <div class="clock" id="clock" title="当前时间"></div>
+
+      <div class="topbar__actions">
+        <button class="icon-btn" id="btn-theme" title="切换明暗主题"><span data-theme-icon>🌙</span></button>
+      </div>
+    </div>
+  </header>
+
+  <div class="backdrop" id="backdrop" hidden></div>
+
+  <!-- ===== 统计概览 ===== -->
+  <section class="stats" aria-label="统计概览">
+    <div class="stat-card"><div class="stat-card__num" id="stat-total">0</div><div class="stat-card__label">全部任务</div></div>
+    <div class="stat-card"><div class="stat-card__num" id="stat-done">0</div><div class="stat-card__label">已完成</div></div>
+    <div class="stat-card"><div class="stat-card__num" id="stat-pending">0</div><div class="stat-card__label">进行中</div></div>
+    <div class="stat-card"><div class="stat-card__num" id="stat-overdue">0</div><div class="stat-card__label">已逾期</div></div>
+  </section>
+
+  <!-- ===== 主体 ===== -->
+  <div class="layout">
+    <!-- 侧栏（仅清单页显示） -->
+    <aside class="sidebar" id="sidebar">
+      <section class="card views" aria-label="预设视图">
+        <div class="card__head"><h2>视图</h2></div>
+        <div class="views__list" id="view-presets">
+          <button class="view-item view-item--active" data-view="all">全部 <span class="view-count" data-count="all"></span></button>
+          <button class="view-item" data-view="today">今天截止 <span class="view-count" data-count="today"></span></button>
+          <button class="view-item" data-view="week">本周截止 <span class="view-count" data-count="week"></span></button>
+          <button class="view-item" data-view="overdue">已逾期 <span class="view-count" data-count="overdue"></span></button>
+          <button class="view-item" data-view="important">重要 <span class="view-count" data-count="important"></span></button>
+          <button class="view-item" data-view="done">已完成 <span class="view-count" data-count="done"></span></button>
+          <button class="view-item" data-view="undone">未完成 <span class="view-count" data-count="undone"></span></button>
+        </div>
+      </section>
+
+      <section class="card settings" aria-label="小贴士">
+        <div class="card__head"><h2>💡 小贴士</h2></div>
+        <p class="settings__tip">「今日一屏」页的快速录入支持自然语言，例如：<br>「明天下午3点交实验报告 高优先」<br>「今晚8点 复习高数」</p>
+        <p class="settings__tip" style="margin-top:8px">提醒时间在任务的编辑弹窗中单独设置。</p>
+      </section>
+    </aside>
+
+    <!-- 主内容：由哈希路由切换 -->
+    <main class="content">
+      <!-- 清单页 -->
+      <section class="page" data-page="home">
+        <div class="toolbar card">
+          <div class="search">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M15.5 14h-.79l-.28-.27a6.5 6.5 0 1 0-.7.7l.27.28v.79l5 4.99L20.49 19zm-6 0A4.5 4.5 0 1 1 14 9.5 4.5 4.5 0 0 1 9.5 14z"/></svg>
+            <input type="text" id="search-input" placeholder="搜索标题、描述或标签…" autocomplete="off" />
+          </div>
+          <select id="filter-category" class="select" title="分类">
+            <option value="all">全部分类</option>
+            <option value="课程">课程</option>
+            <option value="社团">社团</option>
+            <option value="生活">生活</option>
+            <option value="其他">其他</option>
+          </select>
+          <select id="sort-select" class="select" title="排序">
+            <option value="due-asc">截止时间 ↑</option>
+            <option value="due-desc">截止时间 ↓</option>
+            <option value="priority">优先级</option>
+            <option value="created-desc">创建时间</option>
+          </select>
+          <button class="btn" id="btn-batch">批量管理</button>
+          <button class="btn btn--danger" id="btn-clear-done">清除已完成</button>
+        </div>
+
+        <div class="card table-card">
+          <table class="task-table">
+            <thead>
+              <tr>
+                <th class="col-sel" id="th-select" hidden><input type="checkbox" id="select-all" title="全选"></th>
+                <th class="col-check"></th>
+                <th>任务</th>
+                <th>分类</th>
+                <th>优先级</th>
+                <th>截止时间</th>
+                <th>标签</th>
+                <th class="col-actions">操作</th>
+              </tr>
+            </thead>
+            <tbody id="task-list"></tbody>
+          </table>
+          <div class="empty" id="empty-state" hidden>
+            <div class="empty__icon">📚</div>
+            <p id="empty-text">当前视图下没有任务</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- 专注页 -->
+      <section class="page" data-page="focus" hidden>
+        <div class="focus-grid">
+          <div class="card pomodoro pomodoro--big" aria-label="番茄钟">
+            <div class="card__head"><h2>🍅 番茄钟</h2></div>
+            <div class="pomodoro__ring">
+              <svg viewBox="0 0 120 120" class="pomodoro__svg">
+                <circle class="pomodoro__track" cx="60" cy="60" r="52" />
+                <circle class="pomodoro__progress" cx="60" cy="60" r="52" id="pomodoro-progress" />
+              </svg>
+              <div class="pomodoro__time" id="pomodoro-time">25:00</div>
+              <div class="pomodoro__mode" id="pomodoro-mode">专注</div>
+            </div>
+            <div class="pomodoro__controls">
+              <button class="btn btn--primary" id="pomodoro-toggle">开始</button>
+              <button class="btn" id="pomodoro-reset">重置</button>
+            </div>
+            <div class="pomodoro__settings">
+              <label>专注时长 <input type="number" id="pomodoro-focus-min" min="1" max="180" value="25" /> 分钟</label>
+              <button class="btn" id="pomodoro-apply">应用</button>
+            </div>
+            <div class="pomodoro__stats">
+              <span>今日专注 <b id="pomodoro-sessions">0</b> 次</span>
+              <span>累计 <b id="pomodoro-minutes">0</b> 分钟</span>
+            </div>
+          </div>
+          <div class="card quote" aria-label="每日一言">
+            <div class="card__head"><h2>✨ 每日一言</h2></div>
+            <p class="quote__text" id="quote-text">加载中…</p>
+            <p class="quote__author" id="quote-author"></p>
+          </div>
+        </div>
+      </section>
+
+      <!-- 今日一屏页 -->
+      <section class="page" data-page="plan" hidden>
+        <div class="hero">
+          <div class="hero__mask"></div>
+          <div class="hero__body">
+            <div class="hero__hello" id="hero-hello">早上好</div>
+            <div class="hero__date" id="hero-date"></div>
+            <div class="hero__tip" id="hero-tip"></div>
+          </div>
+          <svg class="hero__leaf hero__leaf--1" viewBox="0 0 64 64" aria-hidden="true"><path fill="currentColor" d="M8 56c0-26 18-44 48-48-2 30-20 48-48 48zm6-6c6-18 18-30 34-38-16 12-26 24-34 38z"/></svg>
+          <svg class="hero__leaf hero__leaf--2" viewBox="0 0 64 64" aria-hidden="true"><path fill="currentColor" d="M8 56c0-26 18-44 48-48-2 30-20 48-48 48zm6-6c6-18 18-30 34-38-16 12-26 24-34 38z"/></svg>
+        </div>
+        <div class="today-layout">
+          <div class="card today-left">
+            <div class="card__head"><h2>🗓 今日课表</h2></div>
+            <div id="today-schedule" class="today-schedule"></div>
+            <div class="sched-decor" aria-hidden="true"></div>
+            <div class="sched-summary" id="sched-summary"></div>
+            <details class="plan-collapse plan-collapse--inline">
+              <summary class="plan-collapse__summary">
+                <span>📚 管理课程表</span>
+                <span class="plan-collapse__arrow" aria-hidden="true">▾</span>
+              </summary>
+              <form class="inline-form" id="class-form" novalidate>
+                <input type="text" id="cls-name" placeholder="课程名称" required />
+                <select id="cls-day">
+                  <option value="1">周一</option><option value="2">周二</option><option value="3">周三</option>
+                  <option value="4">周四</option><option value="5">周五</option><option value="6">周六</option><option value="7">周日</option>
+                </select>
+                <input type="time" id="cls-start" value="08:00" required />
+                <span class="inline-form__dash">至</span>
+                <input type="time" id="cls-end" value="09:40" required />
+                <input type="text" id="cls-location" placeholder="地点" />
+                <input type="text" id="cls-teacher" placeholder="任课老师" />
+                <button class="btn btn--primary" type="submit">添加</button>
+              </form>
+              <ul class="plan-list" id="class-list"></ul>
+            </details>
+          </div>
+          <div class="card today-right">
+            <div id="now-card" class="now-card"></div>
+            <div id="today-tasks" class="today-tasks"></div>
+          </div>
+        </div>
+        <div class="today-footer" id="today-footer"></div>
+      </section>
+    </main>
+  </div>
+
+  <!-- 悬浮添加按钮 -->
+  <button class="fab" id="btn-add" title="新建任务"><span>+</span></button>
+
+  <!-- 批量操作栏 -->
+  <div class="batch-bar" id="batch-bar" hidden>
+    <span class="batch-bar__info">已选 <b id="batch-count">0</b> 项</span>
+    <button class="btn" id="batch-all">全选</button>
+    <button class="btn" id="batch-done">标记完成</button>
+    <button class="btn btn--danger" id="batch-delete">删除</button>
+    <button class="btn" id="batch-exit">退出批量</button>
+  </div>
+
+  <!-- 任务编辑弹窗 -->
+  <div class="modal-mask" id="modal" hidden>
+    <div class="modal">
+      <div class="modal__head">
+        <h2 id="modal-title">新建任务</h2>
+        <button class="icon-btn" id="modal-close" title="关闭">✕</button>
+      </div>
+      <form id="task-form" novalidate>
+        <input type="hidden" id="f-id" />
+        <label class="field"><span>标题 <em>*</em></span><input type="text" id="f-title" placeholder="例如：完成 Web 程序设计大作业" required /></label>
+        <label class="field"><span>描述</span><textarea id="f-desc" rows="2" placeholder="补充说明（可选）"></textarea></label>
+        <div class="field-row">
+          <label class="field"><span>分类</span>
+            <select id="f-category"><option value="课程">课程</option><option value="社团">社团</option><option value="生活">生活</option><option value="其他">其他</option></select>
+          </label>
+          <label class="field"><span>优先级</span>
+            <select id="f-priority"><option value="high">高</option><option value="medium" selected>中</option><option value="low">低</option></select>
+          </label>
+        </div>
+        <div class="field-row">
+          <label class="field"><span>截止时间</span><input type="datetime-local" id="f-due" /></label>
+          <label class="field"><span>提前提醒</span>
+            <select id="f-warn">
+              <option value="0">不提醒</option>
+              <option value="15">提前 15 分钟</option>
+              <option value="30">提前 30 分钟</option>
+              <option value="60">提前 1 小时</option>
+              <option value="180">提前 3 小时</option>
+              <option value="1440">提前 1 天</option>
+            </select>
+          </label>
+        </div>
+        <label class="field"><span>下一步动作 <small>（可选，大任务先迈出第一步）</small></span><input type="text" id="f-next" placeholder="例如：先列个提纲" /></label>
+        <label class="field"><span>标签 <small>（用逗号分隔）</small></span><input type="text" id="f-tags" placeholder="例如：大作业, 期末, 团队" /></label>
+        <div class="modal__foot">
+          <button type="button" class="btn" id="modal-cancel">取消</button>
+          <button type="submit" class="btn btn--primary">保存</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- 详情弹窗 -->
+  <div class="modal-mask" id="detail-modal" hidden>
+    <div class="modal">
+      <div class="modal__head">
+        <h2 id="detail-title">详情</h2>
+        <button class="icon-btn" id="detail-close" title="关闭">✕</button>
+      </div>
+      <div id="detail-body" class="detail-body"></div>
+      <div class="modal__foot">
+        <button type="button" class="btn" id="detail-done">关闭</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 今日一屏模态（建议 / 收工） -->
+  <div class="modal-mask" id="today-modal" hidden>
+    <div class="modal" id="today-modal-body"></div>
+  </div>
+
+  <!-- Toast 提示 -->
+  <div class="toast" id="toast" role="status"></div>
+
+  <!-- 脚本按依赖顺序加载 -->
+  <script src="js/utils.js"></script>
+  <script src="js/storage.js"></script>
+  <script src="js/model.js"></script>
+  <script src="js/pomodoro.js"></script>
+  <script src="js/router.js"></script>
+  <script src="js/view.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
